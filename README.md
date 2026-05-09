@@ -5,6 +5,7 @@
 [![License](https://img.shields.io/pypi/l/aiotrace)](https://github.com/Kubenew/aiotrace/blob/main/LICENSE)
 [![GitHub](https://img.shields.io/github/stars/Kubenew/aiotrace?style=social)](https://github.com/Kubenew/aiotrace)
 [![Tests](https://img.shields.io/github/actions/workflow/status/Kubenew/aiotrace/ci.yml?label=tests)](https://github.com/Kubenew/aiotrace/actions)
+[![Downloads](https://img.shields.io/pepy/dt/aiotrace)](https://pepy.tech/projects/aiotrace)
 
 Fixes OpenTelemetry context propagation across asyncio boundaries:
 `create_task`, `Queue`, `Lock`, `Event`, `Semaphore`, `TaskGroup`, and
