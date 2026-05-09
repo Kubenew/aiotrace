@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from aiotrace import PropagatingQueue
+from aiotrace import PropagatingQueue, install
 
 
 @pytest.mark.asyncio
@@ -65,3 +65,62 @@ async def test_queue_standard_behavior(tracer, exporter):
     result = await q.get()
     assert result == 2
     assert q.empty()
+
+
+@pytest.mark.asyncio
+async def test_queue_child_span_nests_under_producer(tracer, exporter):
+    q = PropagatingQueue()
+
+    async def consumer():
+        item = await q.get()
+        with tracer.start_as_current_span("consumer"):
+            pass
+        return item
+
+    async def producer():
+        with tracer.start_as_current_span("producer"):
+            await q.put("x")
+            await asyncio.create_task(consumer())
+
+    await producer()
+
+    spans = {s.name: s for s in exporter.spans}
+    assert "producer" in spans
+    assert "consumer" in spans
+
+
+@pytest.mark.asyncio
+async def test_install_patches_queue(tracer, exporter):
+    install()
+
+    q = asyncio.Queue()
+
+    async def worker():
+        with tracer.start_as_current_span("worker"):
+            await q.get()
+
+    with tracer.start_as_current_span("producer"):
+        await q.put("data")
+        await asyncio.create_task(worker())
+
+    names = {s.name for s in exporter.spans}
+    assert "producer" in names
+    assert "worker" in names
+
+
+@pytest.mark.asyncio
+async def test_queue_cancellation_no_context_leak(tracer, exporter):
+    q = PropagatingQueue()
+
+    async def waiter():
+        with tracer.start_as_current_span("waiter"):
+            await q.get()
+
+    task = asyncio.create_task(waiter())
+    await asyncio.sleep(0.01)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    await q.put("cleanup")
+    assert any(s.name == "waiter" for s in exporter.spans)
